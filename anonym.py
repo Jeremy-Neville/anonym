@@ -16,6 +16,7 @@ import argparse
 import os
 import os.path
 from faker import Faker
+import faker_commerce
 import jsonpath_ng
 import jsonpath_ng.ext
 import time
@@ -23,7 +24,7 @@ import ipaddress
 import random
 import traceback
 
-VERSION = "1.04"
+VERSION = "1.05"
 TOOL_NAME = f"Anonym {VERSION}" 
 
 args = None          # Parsed command line arguments
@@ -31,6 +32,7 @@ handler_defs = []	 # Current handler definitions
 current_line = -1    # Current line in the CSV file
 
 fake = Faker()
+fake.add_provider(faker_commerce.Provider)
 
 def warning(msg, print_exception = False, field = None):
 	""" Print warning message. """
@@ -276,6 +278,11 @@ class CoordField(Field):
 		# We randomize with up to 0.5 degree difference (+/-50km)
 		val = "%.3f" % (float_val + (random.randrange(1000) - 500) * 0.001)
 		return self.type(val)
+	
+class ProductField(Field):
+	""" Anonymize products """
+	def anonymize_data(self, data):
+		return fake.ecommerce_name()
 
 def parse_params():
 	""" Parse parameters. """
@@ -290,6 +297,7 @@ def parse_params():
 	parser.add_argument("-Fi", "--field-ip",    help="Field containing IPs",            type=str, action='append')
 	parser.add_argument("-Fc", "--field-coord", help="Field containing coordinates",    type=str, action='append')
 	parser.add_argument("-Fh", "--field-host",  help="Field containing host names",     type=str, action='append')
+	parser.add_argument("-Fp", "--field-product", help="Field containing product", 		type=str, action='append')
 	parser.add_argument("-t",  "--type", help="Type of input files; valid values - 'csv' (default), 'json'", type=str, default='csv', choices=['csv', 'json'])
 	parser.add_argument("-p",  "--predictable-names", help="Generate predictable artificial names (to use for regression testing)", action='store_true')
 	parser.add_argument("-o",  "--output-folder", help="Output folder to use", type=str, required=True)
@@ -303,6 +311,7 @@ def parse_params():
 	handler_defs.extend(process_field_param(args.field_ip,    IPField))
 	handler_defs.extend(process_field_param(args.field_coord, CoordField))
 	handler_defs.extend(process_field_param(args.field_host,  HostField))
+	handler_defs.extend(process_field_param(args.field_product, ProductField))
 	
 	# Check output folder
 	if not os.path.isdir(args.output_folder):
